@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <!-- 路由 -->
     <router-view></router-view>
     <!-- 使用组件 -->
     <main-tab-bar></main-tab-bar>

@@ -1,6 +1,7 @@
 <template>
     <div>
     <swiper>
+      <!-- 放轮播图banner的slot插槽 -->
       <swiper-item v-for="item in banners" :key="item.index">
         <a :href="item.link">
           <img :src="item.image" alt="">
