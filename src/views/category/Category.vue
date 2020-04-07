@@ -119,7 +119,18 @@
         // 组件创建完后调用，没挂载模板
         mounted() {
           this.scroll = new BScroll('.wrapper', {
+            probeType: 3,
+            pullUpLoad: true
+          })
 
+          // 滑动监听
+          this.scroll.on('scroll', (position) => {
+            console.log(position)
+          })
+
+          // 上啦加载更多
+          this.scroll.on('pullingUp',() => {
+            console.log('上啦加载更多')
           })
         }
     }

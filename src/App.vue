@@ -1,7 +1,9 @@
 <template>
   <div id="app">
     <!-- 路由 -->
+    <keep-alive>
     <router-view></router-view>
+    </keep-alive>
     <!-- 使用组件 -->
     <main-tab-bar></main-tab-bar>
   </div>

@@ -5,22 +5,32 @@
     <nav-bar class="home-nav">
       <div slot="center">购物街</div>
     </nav-bar>
-    <!-- 轮播图封装 -->
-    <home-swiper :banners="banners"></home-swiper>
-    <!-- 首页推荐封装抽取 -->
-    <recommend-view :recommends="recommends"></recommend-view>
-    <!-- 推荐下方组件导入 -->
-    <feature-view></feature-view>
-    <!-- 控制组件 -->
-    <tab-control 
-      class="tab-control"
-      :titles="['流行','新款','精选']"
-      @tabClick="tabClick">
-    </tab-control>
-    <!-- 商品列表页 -->
-    <GoodsList :goods="showGoods"></GoodsList>
-    
+    <!-- 滚动组件 -->
+    <scroll class="content" ref="scroll" 
+            :probe-type="3" 
+            @scroll="contentScroll"
+            :pull-up-load="true"
+            @pullingUp="loadMore">
+        <!-- 轮播图封装 -->
+        <home-swiper :banners="banners"></home-swiper>
+        <!-- 首页推荐封装抽取 -->
+        <recommend-view :recommends="recommends"></recommend-view>
+        <!-- 推荐下方组件导入 -->
+        <feature-view></feature-view>
+        <!-- 控制组件 -->
+        <tab-control 
+          class="tab-control"
+          :titles="['流行','新款','精选']"
+          @tabClick="tabClick"
+          ref="tabConTrol">
+        </tab-control>
+        <!-- 商品列表页 -->
+        <GoodsList :goods="showGoods"></GoodsList>
+      </scroll>
+      <!-- 监听组件点击加上.native -->
+      <back-top @click.native="backClick" v-show="isShowBackTop"></back-top>
   </div>
+      
 </template>
 
 <script>
@@ -36,12 +46,18 @@
   import NavBar from 'components/common/navbar/NavBar'
   import TabControl from 'components/content/tabControl/TabControl'
   import GoodsList from 'components/content/goods/GoodsList'
+  import Scroll from 'components/common/scroll/Scroll'
+  // 返回顶部
+  import BackTop from 'components/content/backTop/BackTop'
 
   // 首页请求数据导入
   import { 
     getHomeMultidata, 
     getHomeGoods
   } from "network/home"
+  import {debounce} from 'common/utils'
+
+  import BScroll from 'better-scroll'
 
 
   export default {
@@ -50,6 +66,8 @@
         NavBar,
         TabControl,
         GoodsList, 
+        Scroll,
+        BackTop,
 
         HomeSwiper,
         RecommendView,
@@ -66,7 +84,11 @@
             'sell': {page: 0, list: []},
           },
           // 默认是'pop'
-          currentType: 'pop'
+          currentType: 'pop',
+          // 默认按钮时不显示的
+          isShowBackTop: false,
+          // 吸附
+          tabOffstTop: 0
         }
       },
       // 计算属性
@@ -81,10 +103,24 @@
         // 封装到methods,这里只写逻辑代码
         // 1.请求多个数据
        this.getHomeMultidata()
-        // 请求商品数据
+        // 2.请求商品数据
        this.getHomeGoods('pop')
        this.getHomeGoods('new')
        this.getHomeGoods('sell')
+
+      },
+      mounted () {
+        // 1.图片加载完成的事件监听
+        const refresh = debounce(this.$refs.scroll.refresh, 200)
+        // 3.监听item中图片加载完成(bus)
+        this.$bus.$on('itemImageLoad', () => {
+          refresh()
+        })
+
+        // 2.获取tabControl的offsetTop
+        // 所有的组件都有一个属性$el:用于获取组件中的元素
+        console.log(this.$refs.tabConTrol.$el.offsetTop)
+        this.tabOffstTop = this.$refs.tabConTrol.$el.offsetTop
       },
       methods: {
         /**
@@ -104,7 +140,20 @@
               break
           }
         },
-
+        // 返回顶部
+        backClick() {
+          // 通过REF拿到组件对象
+          this.$refs.scroll.scrollTo(0,0)
+        },
+        contentScroll(position) {
+          // console.log(position)
+          // position.y > 100
+          this.isShowBackTop = (-position.y) > 1000
+        },
+        loadMore() {
+          // console.log('上拉加载更多')
+          this.getHomeGoods(this.currentType)
+        },
         /** 
          * 网络请求相关方法
         */
@@ -126,6 +175,9 @@
             // 结果 => 前30条数据   page:1 
             this.goods[type].list.push(...res.data.list)
             this.goods[type].page += 1
+            
+            // 完成了上拉加载更多，调用finish
+            this.$refs.scroll.finishPullUp()
           })
         },
       }
@@ -136,6 +188,8 @@
 <style  scoped>
    #home {
     padding-top: 44px;
+    /* vh->视口高度 */
+    height: 100vh;
     position: relative;
   }
 
@@ -155,4 +209,20 @@
     top:44px;
     z-index: 9;
   }
+
+  .content {
+    /* height: 300px; */
+    overflow: hidden;
+
+    position: absolute;
+    top:44px;
+    bottom: 49px;
+    left: 0;
+    right: 0;
+  }
+
+  /* .content {
+    height: calc(100% - 93px);
+    margin-top: 44px;
+  } */
 </style>
