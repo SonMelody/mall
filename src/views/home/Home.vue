@@ -5,6 +5,15 @@
     <nav-bar class="home-nav">
       <div slot="center">购物街</div>
     </nav-bar>
+
+    <!-- 复制一份tab-control -->
+    <tab-control 
+      class="tab-control"
+      :titles="['流行','新款','精选']"
+      @tabClick="tabClick"
+      ref="tabConTrol1" v-show="isTabFixed">
+    </tab-control>
+
     <!-- 滚动组件 -->
     <scroll class="content" ref="scroll" 
             :probe-type="3" 
@@ -12,17 +21,16 @@
             :pull-up-load="true"
             @pullingUp="loadMore">
         <!-- 轮播图封装 -->
-        <home-swiper :banners="banners"></home-swiper>
+        <home-swiper :banners="banners" @swiperImageLoad="swiperImageLoad"></home-swiper>
         <!-- 首页推荐封装抽取 -->
         <recommend-view :recommends="recommends"></recommend-view>
         <!-- 推荐下方组件导入 -->
         <feature-view></feature-view>
         <!-- 控制组件 -->
         <tab-control 
-          class="tab-control"
           :titles="['流行','新款','精选']"
           @tabClick="tabClick"
-          ref="tabConTrol">
+          ref="tabConTrol2" >
         </tab-control>
         <!-- 商品列表页 -->
         <GoodsList :goods="showGoods"></GoodsList>
@@ -88,7 +96,9 @@
           // 默认按钮时不显示的
           isShowBackTop: false,
           // 吸附
-          tabOffstTop: 0
+          tabOffstTop: 0,
+          isTabFixed: false,
+          saveY: 0
         }
       },
       // 计算属性
@@ -97,6 +107,13 @@
         showGoods() {
           return this.goods[this.currentType].list
         }
+      },
+      activated() {
+        this.$refs.scroll.scrollTo(0,this.saveY,)
+        this.$refs.scroll.refresh()
+      },
+      deactivated() {
+        this.saveY = this.$refs.scroll.scroll.y
       },
       // 首页组件创建完后，发送网络请求
       created () {
@@ -116,11 +133,6 @@
         this.$bus.$on('itemImageLoad', () => {
           refresh()
         })
-
-        // 2.获取tabControl的offsetTop
-        // 所有的组件都有一个属性$el:用于获取组件中的元素
-        console.log(this.$refs.tabConTrol.$el.offsetTop)
-        this.tabOffstTop = this.$refs.tabConTrol.$el.offsetTop
       },
       methods: {
         /**
@@ -139,20 +151,29 @@
               this.currentType = 'sell'
               break
           }
+          this.$refs.tabConTrol1.currentIndex = index;
+          this.$refs.tabConTrol2.currentIndex = index;
         },
         // 返回顶部
         backClick() {
-          // 通过REF拿到组件对象
+          // 通过ref拿到组件对象
           this.$refs.scroll.scrollTo(0,0)
         },
         contentScroll(position) {
           // console.log(position)
           // position.y > 100
+          // 1.判断BackTop是否显示
           this.isShowBackTop = (-position.y) > 1000
+          // 2.决定tabControl是否吸顶（position:fixed）
+          this.isTabFixed = (-position.y) > this.tabOffstTop
         },
         loadMore() {
           // console.log('上拉加载更多')
           this.getHomeGoods(this.currentType)
+        },
+        swiperImageLoad() {
+          // console.log(this.$refs.tabConTrol.$el.offsetTop)
+          this.tabOffstTop = this.$refs.tabConTrol2.$el.offsetTop
         },
         /** 
          * 网络请求相关方法
@@ -187,7 +208,7 @@
 
 <style  scoped>
    #home {
-    padding-top: 44px;
+    /* padding-top: 44px; */
     /* vh->视口高度 */
     height: 100vh;
     position: relative;
@@ -197,11 +218,12 @@
     background-color:var(--color-tint);
     color: white;
 
-    position: fixed;
+    /* 使用原生滚动时候，为了让他脱标准流 */
+    /* position: fixed;
     left: 0;
     right: 0;
     top: 0;
-    z-index: 9;
+    z-index: 9; */
   }
 
   .tab-control {
