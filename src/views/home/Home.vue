@@ -98,7 +98,8 @@
           // 吸附
           tabOffstTop: 0,
           isTabFixed: false,
-          saveY: 0
+          saveY: 0,
+          itemImgListener:{}
         }
       },
       // 计算属性
@@ -113,7 +114,11 @@
         this.$refs.scroll.refresh()
       },
       deactivated() {
+        // 1.保存Y值
         this.saveY = this.$refs.scroll.scroll.y
+
+        // 2.取消全局事件的监听
+        this.$bus.$off('itemImgLoad' , this.itemImgListener)
       },
       // 首页组件创建完后，发送网络请求
       created () {
@@ -129,10 +134,13 @@
       mounted () {
         // 1.图片加载完成的事件监听
         const refresh = debounce(this.$refs.scroll.refresh, 200)
-        // 3.监听item中图片加载完成(bus)
-        this.$bus.$on('itemImageLoad', () => {
+
+        // 对监听的事件进行保存
+        this.itemImgListener = () => {
           refresh()
-        })
+        }
+        // 3.监听item中图片加载完成(bus)
+        this.$bus.$on('itemImageLoad',  this.itemImgListener )
       },
       methods: {
         /**

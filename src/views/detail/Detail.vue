@@ -1,13 +1,18 @@
 <template>
     <div id="detail">
-      <detail-nav-bar class="detail-nav"></detail-nav-bar>
-      <scroll class="content" ref="scroll" >
+      <detail-nav-bar class="detail-nav" @titleClick="titleClick" ref="nav"></detail-nav-bar>
+      <scroll class="content" ref="scroll" @scroll="contentScroll"
+      :probe-type="3">
         <detail-swiper :top-images="topImages"></detail-swiper>
         <detail-base-info :goods="this.goods"></detail-base-info>
         <detail-shop-info :shop="this.shop"></detail-shop-info>
         <detail-goods-info :detailInfo="this.detailInfo" @imageLoad="imageLoad"></detail-goods-info>
-        <detail-param-info :param-info="paramInfo"/>
+        <detail-param-info :param-info="paramInfo" ref="params"/>
+        <detail-comment-info :comment-info="commentInfo" ref="comments">
+        </detail-comment-info>
+        <goods-list :goods="recommends" ref="recommends" ></goods-list>
       </scroll>
+      <detail-bottom-bar></detail-bottom-bar>
     </div>
 </template>
 
@@ -18,10 +23,19 @@
     import DetailShopInfo from './childComps/DetailShopInfo'
     import DetailGoodsInfo from './childComps/DetailGoodsInfo'
     import DetailParamInfo from './childComps/DetailParamInfo'
+    import DetailCommentInfo from './childComps/DeatilCommentInfo'
+    import DetailBottomBar from './childComps/DetailBottomBar'
+    // import DetailRecommendInfo from './childComps/DetailRecommendInfo'
 
+    import GoodsList from 'components/content/goods/GoodsList'
     import Scroll from 'components/common/scroll/Scroll'
 
-    import {getDetail, Goods, Shop, GoodsParam} from 'network/detail'
+    import {getDetail, Goods, Shop, GoodsParam, getRecommend} from 'network/detail'
+    // import {debounce} from 'common/utils'
+    import {itemListenerMixin} from 'common/mixin'
+    import {debounce} from 'common/utils'
+
+  
 
     export default {
         name:'Detail',
@@ -32,8 +46,13 @@
           DetailShopInfo,
           Scroll,
           DetailGoodsInfo,
-          DetailParamInfo
+          DetailParamInfo,
+          DetailCommentInfo,
+          // DetailRecommendInfo
+          GoodsList,
+          DetailBottomBar
         },
+        mixins:[itemListenerMixin],
         data() {
           return {
             iid:null,
@@ -41,7 +60,12 @@
             goods:{},
             shop:{},
             detailInfo:{},
-            paramInfo:{}
+            paramInfo:{},
+            commentInfo:{},
+            recommends:[],
+            themeTopYs:[],
+            getThemeTopY:null,
+            currentIndex:0
           }
         },
         created() {
@@ -65,14 +89,89 @@
 
             // 5.获取参数的信息
             this.paramInfo = new GoodsParam(data.itemParams.info, data.itemParams.rule)
-          })
+
+            // 6.取出评论的信息
+            if (data.rate.cRate !== 0) {
+              this.commentInfo = data.rate.list[0]
+            }
+
+            //  this.$nextTick(() => {
+            //   //  根据最新的数据，对应的DOM是已经被渲染出来了
+            //   // 但是图片依然是没有加载完的
+            //   this.themeTopYs = []
+
+            //   this.themeTopYs.push(0);
+            //   this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+            //   this.themeTopYs.push(this.$refs.comments.$el.offsetTop)
+            //   this.themeTopYs.push(this.$refs.recommends.$el.offsetTop)
+
+            //   console.log(this.themeTopYs)
+
+
+        })
+          // 3.请求推荐数据
+          getRecommend().then(res => {
+            this.recommends = res.data.list
+          }) 
+
+          // 4.给getThemeTopY
+          this.getThemeTopY = debounce(() => {
+
+            this.themeTopYs = []
+            this.themeTopYs.push(0);
+            this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+            this.themeTopYs.push(this.$refs.comments.$el.offsetTop)
+            this.themeTopYs.push(this.$refs.recommends.$el.offsetTop)
+
+            console.log(this.themeTopYs);
+          }, 500)
+        },
+        mounted() {
+          // console.log('111')
+        },
+        destroyed() {
+          this.$bus.$off('itemImgLoad' , this.itemImgListener)
         },
     methods: {
       imageLoad() {
         this.$refs.scroll.refresh()
+        this.getThemeTopY()
+      },
+      titleClick(index) {
+        // console.log(index)
+        this.$refs.scroll.scrollTo(0, -this.themeTopYs[index], 100)
+      },
+      contentScroll(position) {
+        // console.log(position)
+        // 1.获取y值
+        const positionY = -position.y
+
+        // 2.positionY和主题中的值进行对比
+        // positionY 在 0 和 7938之间 index= 0 
+        // positionY 在 7938 和 9120 之间 index= 1
+        // positionY 在 9120 和 9452 之间 index= 2
+        // positionY 在超过0120 index= 3
+
+        let length = this.themeTopYs.length
+        for (let i=0; i < length; i++) {
+          // if(positionY > this.themeTopYs[parseInt(i)] && positionY < this.themeTopYs[i+1]) {
+          //   console.log(i)
+          // }
+
+          // 不一致的情况下在进入其中判断条件
+          if(this.currentIndex !== i && ((i < length - 1 && positionY > this.themeTopYs[i] && positionY < this.themeTopYs[i+1]) 
+          || 
+          (i === length -1 && positionY > this.themeTopYs[i])))
+          {
+
+            this.currentIndex = i;
+            this.$refs.nav.currentIndex = this.currentIndex
+
+          }   
+        }
       }
     }
-    }
+  }
 
 </script>
 
@@ -85,7 +184,7 @@
   }
 
   .content {
-    height: calc(100% - 44px );
+    height: calc(100% - 44px - 49px );
   }
 
   .detail-nav {
