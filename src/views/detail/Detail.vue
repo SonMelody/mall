@@ -12,7 +12,9 @@
         </detail-comment-info>
         <goods-list :goods="recommends" ref="recommends" ></goods-list>
       </scroll>
-      <detail-bottom-bar></detail-bottom-bar>
+      <detail-bottom-bar @addToCart="addToCart"></detail-bottom-bar>
+      <back-top @click.native="backClick" v-show="isShowBackTop"></back-top>
+      <!-- <toast :message="message" :show="show"></toast> -->
     </div>
 </template>
 
@@ -29,11 +31,17 @@
 
     import GoodsList from 'components/content/goods/GoodsList'
     import Scroll from 'components/common/scroll/Scroll'
+    import BackTop from 'components/content/backTop/BackTop'
 
     import {getDetail, Goods, Shop, GoodsParam, getRecommend} from 'network/detail'
     // import {debounce} from 'common/utils'
     import {itemListenerMixin} from 'common/mixin'
     import {debounce} from 'common/utils'
+
+    import { mapActions } from 'vuex'
+
+    // toast组件
+    // import Toast from 'components/common/toast/toast'
 
   
 
@@ -50,7 +58,9 @@
           DetailCommentInfo,
           // DetailRecommendInfo
           GoodsList,
-          DetailBottomBar
+          DetailBottomBar,
+          BackTop,
+          // Toast
         },
         mixins:[itemListenerMixin],
         data() {
@@ -65,7 +75,10 @@
             recommends:[],
             themeTopYs:[],
             getThemeTopY:null,
-            currentIndex:0
+            currentIndex:0,
+            isShowBackTop: false,
+            // message:'',
+            // show:false
           }
         },
         created() {
@@ -133,6 +146,7 @@
           this.$bus.$off('itemImgLoad' , this.itemImgListener)
         },
     methods: {
+      ...mapActions(['addCart']),
       imageLoad() {
         this.$refs.scroll.refresh()
         this.getThemeTopY()
@@ -168,7 +182,39 @@
             this.$refs.nav.currentIndex = this.currentIndex
 
           }   
+          // 3.是否显示回到顶部
+          this.isShowBackTop = (-position.y) > 1000
         }
+      },
+      backClick() {
+          // 通过ref拿到组件对象
+          this.$refs.scroll.scrollTo(0,0)
+        },
+      addToCart() {
+        // console.log('----')
+        // 1.获取购物车需要展示的信息
+        const product = {}
+        product.image = this.topImages[0]
+        product.title = this.goods.title;
+        product.desc = this.goods.desc
+        product.price = this.goods.realPrice
+
+        product.iid = this.iid 
+
+        // 2.将商品添加到购物车里(1.返回promise, 2.mapActions)
+        // this.$store.cartList.
+        // this.$store.commit('addCart', product)
+        this.$store.dispatch('addCart', product).then(res => {
+          // 使用Toast组件
+          // this.show = true;
+          // this.message = res;
+
+          // setTimeout(() => {
+          //   this.show = false
+          // },1500)
+          this.$toast.show(res, 2000)
+        })
+
       }
     }
   }
